@@ -18,19 +18,20 @@ The sensor is designed to be actionable: its state drops back to 0 once
 you acknowledge the currently-shown recalls, and only rises again when a
 genuinely new matching recall appears — see "Acknowledging recalls" below.
 
-## Install (manual — this add-on isn't published anywhere, it's a local add-on)
+## Install
 
-1. Copy this whole `fda-recalls-addon/` folder to `/addons/local/fda-recalls-addon/`
-   on the Home Assistant host. Reach the HAOS filesystem via:
-   - the **Samba share** add-on, if installed (`\\<ha-host>\addons\local\`), or
-   - the **Advanced SSH & Web Terminal** add-on's shell.
-2. In the Home Assistant UI: **Settings → Add-ons → Add-on Store → ⋮ menu
-   → Check for updates** (or restart the Supervisor) so it picks up the
-   new local add-on.
-3. Install **"FDA Recall Monitor"** from the "Local add-ons" section that
-   appears.
+1. In the Home Assistant UI: **Settings → Add-ons → Add-on Store → ⋮ menu
+   → Repositories**, and add `https://github.com/JasonKaz/ha-addons`.
+2. Refresh the store (⋮ menu → **Check for updates**, or just reopen the
+   Add-on Store) — **"FDA Recall Monitor"** should now appear under a new
+   repository section.
+3. Click it and select **Install**. This pulls the prebuilt image from
+   GHCR (`ghcr.io/jasonkaz/amd64-addon-fda-recall-monitor`) rather than
+   building it on your Home Assistant host, so it should only take a few
+   seconds.
 4. Open its **Configuration** tab and set:
-   - `filter` — comma-separated search terms, e.g. `Seattle,jalapeno`.
+   - `filter` — comma-separated search terms, e.g. `Florida,Miami`.
+     - I recommend: `<Your-city>,<Your-state>,Nationwide,nationwide`
    - `scan_interval_minutes` — how often to re-scan (default 60).
    - `openfda_api_key` — optional. Get a free key at
      [open.fda.gov/apis/authentication](https://open.fda.gov/apis/authentication/)
@@ -76,22 +77,23 @@ drops to 0 and only climbs again once a new, not-yet-seen recall is found.
 There's no built-in dashboard button for this — wire it up with Home
 Assistant's core `rest_command` integration. Since `rest_command` runs
 from Home Assistant Core, which sits on the same internal network as this
-add-on, use the add-on's own hostname (shown on its **Info** tab, e.g.
-`local-fda-recall-monitor` — note underscores in the slug become hyphens)
-together with its **internal** port, `8099`. That internal port doesn't
-change even if you remap the host-side port for outside access, so no
-Advanced Mode / Network-section lookup is needed for this:
+add-on, use the add-on's own hostname together with its **internal**
+port, `8099`. That internal port doesn't change even if you remap the
+host-side port for outside access, so no Advanced Mode / Network-section
+lookup is needed for this — but you do need the hostname, which depends
+on how the add-on was installed and isn't predictable in advance: open
+the add-on's **Info** tab and copy the value shown there (it's usually
+along the lines of `<something>-fda-recall-monitor`).
 
 ```yaml
 rest_command:
   fda_recall_acknowledge:
-    url: "http://local-fda-recall-monitor:8099/acknowledge"
+    url: "http://<hostname-from-info-tab>:8099/acknowledge"
     method: POST
 ```
 
-(Replace `local-fda-recall-monitor` with whatever hostname your own
-Info tab shows, if it differs.) Then restart Home Assistant (or reload
-`rest_command` entities) so it picks up the new service.
+Then restart Home Assistant (or reload `rest_command` entities) so it
+picks up the new service.
 
 If you ever need to reach `/acknowledge` from _outside_ Home Assistant's
 internal network (e.g. curling it from another device on your LAN), use
