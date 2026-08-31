@@ -18,7 +18,8 @@ jobs:
 
       - name: Get add-on version
         id: version
-        run: echo "version=$(grep '^version:' fda-recall-monitor/config.yaml | sed 's/version: *//;s/"//g')" >> "$GITHUB_OUTPUT"
+        run: |
+          echo "version=$(grep '^version:' fda-recall-monitor/config.yaml | sed 's/version: *//;s/"//g')" >> "$GITHUB_OUTPUT"
 
       - name: Log in to GHCR
         uses: docker/login-action@v3
