@@ -192,6 +192,12 @@ automatically from a fresh clone, enable it once per clone:
 git config core.hooksPath .githooks
 ```
 
+This add-on's container image is built and published to GHCR
+(`ghcr.io/jasonkaz/amd64-addon-fda-recall-monitor`) by a GitHub Actions
+workflow (`.github/workflows/build-fda-recall-monitor.yml`) whenever a
+change under `fda-recall-monitor/` is pushed to `main`. Bump `version` in
+`config.yaml` to publish a new image tag.
+
 ## Notes
 
 - Detail pages scraped from the FDA site are cached under this add-on's

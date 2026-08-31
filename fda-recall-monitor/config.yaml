@@ -2,6 +2,7 @@ name: "FDA Recall Monitor"
 version: "0.0.1"
 slug: "fda_recall_monitor"
 description: "Tracks FDA recalls matching your search terms and reports a count via a Home Assistant sensor."
+image: "ghcr.io/jasonkaz/{arch}-addon-fda-recall-monitor"
 arch:
   - amd64
 startup: application
