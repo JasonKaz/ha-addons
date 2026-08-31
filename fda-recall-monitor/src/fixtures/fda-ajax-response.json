@@ -1,0 +1,57 @@
+{
+  "draw": 1,
+  "recordsTotal": 1038,
+  "recordsFiltered": 1038,
+  "data": [
+    [
+      "\u003Ctime datetime=\u00222026-08-29T04:00:00Z\u0022\u003E08\/29\/2026\u003C\/time\u003E\n",
+      "\u003Ca href=\u0022\/safety\/recalls-market-withdrawals-safety-alerts\/panorama-produce-recalls-mangoes-due-possible-salmonella-contamination\u0022\u003EMartina\u003C\/a\u003E",
+      "Mangoes",
+      "Food \u0026amp; Beverages, Foodborne Illness",
+      "Potential contamination with Salmonella",
+      "Panorama Produce",
+      "",
+      ""
+    ],
+    [
+      "\u003Ctime datetime=\u00222026-08-29T04:00:00Z\u0022\u003E08\/29\/2026\u003C\/time\u003E\n",
+      "\u003Ca href=\u0022\/safety\/recalls-market-withdrawals-safety-alerts\/everything-sprouts-llc-expands-voluntarily-recall-include-robust-radish-mix-due-potential-e-coli-and\u0022\u003EEverything Sprouts\u003C\/a\u003E",
+      "Robust Radish Mix, 5oz Cups",
+      "Food \u0026amp; Beverages, Foodborne Illness",
+      "Potential to be contaminated with Shiga toxin-producing Escherichia coli (STEC) or Salmonella.",
+      "Everything Sprouts, LLC",
+      "",
+      ""
+    ],
+    [
+      "\u003Ctime datetime=\u00222026-08-28T04:00:00Z\u0022\u003E08\/28\/2026\u003C\/time\u003E\n",
+      "\u003Ca href=\u0022\/safety\/recalls-market-withdrawals-safety-alerts\/northwest-naturals-voluntarily-recalls-two-raw-pet-food-products-because-possible-salmonella\u0022\u003ENorthwest Naturals\u003C\/a\u003E",
+      "Chicken Recipe",
+      "Animal \u0026amp; Veterinary, Foodborne Illness, Food \u0026amp; Beverages, Foodborne Illness",
+      "Potential contamination with Salmonella and\/or Listeria monocytogenes",
+      "Northwest Naturals",
+      "",
+      ""
+    ],
+    [
+      "\u003Ctime datetime=\u00222026-08-28T04:00:00Z\u0022\u003E08\/28\/2026\u003C\/time\u003E\n",
+      "\u003Ca href=\u0022\/safety\/recalls-market-withdrawals-safety-alerts\/b-braun-medical-inc-issues-voluntary-nationwide-recall-09-sodium-chloride-injection-usp-100-ml-150\u0022\u003EB. Braun\u003C\/a\u003E",
+      "0.9% Sodium Chloride Injection USP, 100 mL, in a 150 mL PAB\u00ae Container",
+      "Drugs",
+      "Presence of particulate matter identified as iron oxide",
+      "B. Braun Medical Inc.",
+      "",
+      ""
+    ],
+    [
+      "\u003Ctime datetime=\u00222026-08-26T04:00:00Z\u0022\u003E08\/26\/2026\u003C\/time\u003E\n",
+      "\u003Ca href=\u0022\/safety\/recalls-market-withdrawals-safety-alerts\/revival-animal-health-llc-voluntarily-recalls-feline-milk-replacers-due-inconsistent-levels-vitamins\u0022\u003EShelter\u2019s Choice, Breeder\u2019s Edge\u003C\/a\u003E",
+      "Feline Milk Replacers",
+      "Animal \u0026amp; Veterinary, Food \u0026amp; Beverages",
+      "Low levels of potassium, copper, folic acid, choline and\/or pyridoxine (vitamin B6)",
+      "Revival Animal Health",
+      "",
+      ""
+    ]
+  ]
+}

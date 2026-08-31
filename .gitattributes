@@ -1,0 +1,4 @@
+# Normalize all text files to LF in the repo and on checkout, regardless of
+# each contributor's OS or core.autocrlf setting, so line endings never show
+# up as diff noise.
+* text=auto eol=lf

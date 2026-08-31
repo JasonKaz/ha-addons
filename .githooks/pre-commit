@@ -1,0 +1,42 @@
+#!/bin/sh
+# For each top-level add-on directory (one with its own package.json) that
+# has staged changes, runs that add-on's `npm run format`, `npm run lint`,
+# and `npm test`. No-ops for commits that don't touch any add-on directory.
+# Formatting changes are automatically re-staged so the commit includes the
+# formatted content.
+#
+# This script is version-controlled but git hooks are not — see the repo
+# README for the one-time local setup step to enable it.
+
+repo_root=$(git rev-parse --show-toplevel) || exit 1
+cd "$repo_root" || exit 1
+
+staged_dirs=$(git diff --cached --name-only | sed -n 's#^\([^/]*\)/.*#\1#p' | sort -u)
+
+overall_status=0
+
+for dir in $staged_dirs; do
+  [ -f "$dir/package.json" ] || continue
+
+  echo "$dir: running format + lint + tests..."
+
+  (cd "$dir" && npm run --silent format) || {
+    overall_status=1
+    continue
+  }
+
+  (cd "$dir" && npm run --silent lint)
+  lint_status=$?
+
+  (cd "$dir" && npm test --silent)
+  test_status=$?
+
+  git add "$dir"
+
+  if [ $lint_status -ne 0 ] || [ $test_status -ne 0 ]; then
+    echo "$dir: lint or tests failed — fix the errors above before committing." >&2
+    overall_status=1
+  fi
+done
+
+exit $overall_status

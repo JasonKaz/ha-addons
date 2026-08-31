@@ -1,0 +1,23 @@
+name: "FDA Recall Monitor"
+version: "0.0.1"
+slug: "fda_recall_monitor"
+description: "Tracks FDA recalls matching your search terms and reports a count via a Home Assistant sensor."
+arch:
+  - amd64
+startup: application
+boot: auto
+homeassistant_api: true
+ports:
+  8099/tcp: 8099
+ports_description:
+  8099/tcp: "HTTP endpoint for acknowledging recalls (POST /acknowledge)"
+options:
+  filter: ""
+  scan_interval_minutes: 60
+  openfda_api_key: ""
+  cache_max_age_days: 0
+schema:
+  filter: "str"
+  scan_interval_minutes: "int(5,1440)"
+  openfda_api_key: "str?"
+  cache_max_age_days: "int(0,365)"
