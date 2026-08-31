@@ -175,6 +175,14 @@ tap_action:
   service: rest_command.fda_recall_acknowledge
 ```
 
+## Sample Usage
+
+To get a quick summary of the newest recalls I use a simple Tile card targeting the `sensor.fda_recall_count` entity.
+![Recall Count Entity](./docs/SensorCount.png)
+
+When clicking on that card I use a [Bubble Card](https://github.com/Clooos/bubble-card) popup that lists the details of the latest 10 recalls (the **Display Card** yaml above). Along with the button to acknowledge the recalls.  
+![Recall list in popup](./docs/SensorPopup.png)
+
 ## Development
 
 ```bash
@@ -219,10 +227,3 @@ change under `fda-recall-monitor/` is pushed to `main`. Bump `version` in
 - Acknowledged recall ids are stored indefinitely in
   `/data/acknowledged.json` — this is a small flat list, not a concern at
   any realistic scale.
-- **Upgrading from a version without the openFDA API source**: the
-  acknowledge-tracking scheme changed from tracking recalls by `url` alone
-  to a unified id (needed since API-sourced recalls have no `url`), and
-  the field in `/data/acknowledged.json` was renamed accordingly. No
-  action needed — the add-on just won't recognize the old file's field and
-  will start with an empty acknowledged set — but it does mean anything
-  you'd previously acknowledged will show up as new again once.
