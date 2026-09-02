@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.0.4
+
+- Add `aarch64` to arch config
+
 ## 0.0.3
 
 - Add url to config
