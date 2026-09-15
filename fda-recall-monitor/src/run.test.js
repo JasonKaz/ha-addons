@@ -115,10 +115,12 @@ describe("pushState", () => {
         productDescription: "Widget",
         recallReason: "Defect",
         url: "https://example.com",
-        source: "page",
-        category: null,
+        source: "api",
+        category: "food",
         recallNumber: null,
         classification: null,
+        status: "Ongoing",
+        codeInfo: "Lot # ABC123",
       },
     ];
     await run.pushState(matches, matches, ["widget"]);
@@ -134,6 +136,20 @@ describe("pushState", () => {
     assert.equal(body.attributes.filter_terms.length, 1);
     assert.equal(body.attributes.recalls[0].brand, "Acme");
     assert.equal(body.attributes.recalls[0].isNew, true);
+    assert.equal(body.attributes.recalls[0].status, "Ongoing");
+    assert.equal(body.attributes.recalls[0].codeInfo, "Lot # ABC123");
+  });
+
+  test("status and codeInfo fall back to null for page-sourced matches lacking them", async (t) => {
+    const { restore, calls } = stubSupervisorFetch();
+    t.after(restore);
+
+    const matches = [{ id: "x", date: "08/29/2026", brand: "Acme", source: "page" }];
+    await run.pushState(matches, matches, ["widget"]);
+
+    const body = JSON.parse(calls[0].init.body);
+    assert.equal(body.attributes.recalls[0].status, null);
+    assert.equal(body.attributes.recalls[0].codeInfo, null);
   });
 
   test("sorts new matches ahead of acknowledged ones so they survive the attribute cap", async (t) => {

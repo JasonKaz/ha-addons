@@ -29,8 +29,11 @@ const ENFORCEMENT_ENDPOINTS = {
 // openFDA has no reliable per-record public page for a given recall_number
 // (recalls found via the API frequently don't have a corresponding page on
 // fda.gov at all), so instead of leaving API-sourced entries with no link
-// at all, point at a Google search for the recall id — not guaranteed to
-// surface anything, but usually does, and costs nothing when it doesn't.
+// at all, point at a Google search. The bare recall_number is nearly never
+// indexed anywhere (it's an internal FDA enforcement-report id, not
+// something news coverage or FDA's own press releases mention) — searching
+// on the firm name and product description instead reliably surfaces the
+// FDA announcement page or press coverage when either exists.
 function googleSearchUrl(query) {
   return `https://www.google.com/search?q=${encodeURIComponent(query)}`;
 }
@@ -44,6 +47,14 @@ function formatDate(yyyymmdd) {
   const month = yyyymmdd.slice(4, 6);
   const day = yyyymmdd.slice(6, 8);
   return `${month}/${day}/${year}`;
+}
+
+// openFDA represents a missing recall_number inconsistently — sometimes an
+// empty string, sometimes the literal text "N/A" — so both must be treated
+// as absent, not as a real (and falsely shared) recall number.
+function normalizeRecallNumber(recallNumber) {
+  const trimmed = (recallNumber || "").trim();
+  return trimmed && trimmed.toLowerCase() !== "n/a" ? trimmed : null;
 }
 
 // Fallback unique id for records missing recall_number: hash enough
@@ -87,12 +98,16 @@ async function fetchCategoryMatches(category, url, terms, limit, termMatchers, a
       if (matchedTerms.length === 0) {
         return null;
       }
-      // recall_number is occasionally blank/missing from openFDA's data.
-      // Falling back to the bare "api:<category>:" id would collide across
-      // every such record, causing acknowledging one to silently swallow
-      // all others that also lack a recall_number. Hash the rest of the
-      // record's identifying fields instead so each stays distinct.
-      const idSuffix = r.recall_number || hashRecord(r);
+      // recall_number is occasionally missing from openFDA's data — as a
+      // blank string, or (seen in the wild) the literal text "N/A". Falling
+      // back to the bare "api:<category>:" id, or treating "N/A" as if it
+      // were a real recall number, would collide across every such record,
+      // causing acknowledging one to silently swallow all others that also
+      // lack a recall_number. Hash the rest of the record's identifying
+      // fields instead so each stays distinct.
+      const recallNumber = normalizeRecallNumber(r.recall_number);
+      const idSuffix = recallNumber || hashRecord(r);
+      const productDescription = (r.product_description || "").replace(/\s+/g, " ").trim();
       return {
         id: `api:${category}:${idSuffix}`,
         source: "api",
@@ -100,13 +115,15 @@ async function fetchCategoryMatches(category, url, terms, limit, termMatchers, a
         date: formatDate(r.report_date),
         brand: r.recalling_firm, // openFDA has no separate "brand" concept
         companyName: r.recalling_firm,
-        productDescription: (r.product_description || "").replace(/\s+/g, " ").trim(),
+        productDescription,
         productType: r.product_type || null,
         recallReason: r.reason_for_recall || null,
-        url: r.recall_number ? googleSearchUrl(`FDA recall ${r.recall_number}`) : null,
-        recallNumber: r.recall_number || null,
+        url: googleSearchUrl(`FDA recall ${r.recalling_firm} ${productDescription}`.slice(0, 200)),
+        recallNumber,
         classification: r.classification || null,
         distributionPattern: r.distribution_pattern || null,
+        status: r.status || null,
+        codeInfo: r.code_info || null,
         matchedTerms,
       };
     })

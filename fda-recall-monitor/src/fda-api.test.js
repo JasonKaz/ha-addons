@@ -109,7 +109,7 @@ describe("getMatchingRecallsFromApi", () => {
     assert.notEqual(matches[0].id, matches[1].id);
   });
 
-  test("record with a present recall_number uses it directly for id and url", async (t) => {
+  test("record with a present recall_number uses it directly for id", async (t) => {
     const record = {
       ...fixture,
       recall_number: "F-1234-2026",
@@ -127,10 +127,128 @@ describe("getMatchingRecallsFromApi", () => {
     assert.equal(match.category, "food");
     assert.equal(match.id, "api:food:F-1234-2026");
     assert.equal(match.recallNumber, "F-1234-2026");
+  });
+
+  test("url is a Google search built from the firm and product description, not the bare recall number", async (t) => {
+    const record = {
+      ...fixture,
+      recall_number: "F-1234-2026",
+      recalling_firm: "Acme Foods",
+      product_description: "Canned Beans, 15oz",
+    };
+    const { restore } = stubFetchByCategory({ food: { results: [record] } });
+    t.after(restore);
+
+    const [match] = await getMatchingRecallsFromApi({
+      terms: ["Nationwide"],
+      limit: 10,
+      apiKey: null,
+    });
+
     assert.equal(
       match.url,
-      `https://www.google.com/search?q=${encodeURIComponent("FDA recall F-1234-2026")}`,
+      `https://www.google.com/search?q=${encodeURIComponent("FDA recall Acme Foods Canned Beans, 15oz")}`,
     );
+  });
+
+  test("url is still populated when recall_number is absent", async (t) => {
+    const record = {
+      ...fixture,
+      recall_number: "",
+      recalling_firm: "Acme Foods",
+      product_description: "Canned Beans, 15oz",
+    };
+    const { restore } = stubFetchByCategory({ food: { results: [record] } });
+    t.after(restore);
+
+    const [match] = await getMatchingRecallsFromApi({
+      terms: ["Nationwide"],
+      limit: 10,
+      apiKey: null,
+    });
+
+    assert.ok(match.url.startsWith("https://www.google.com/search?q="));
+  });
+
+  test("status and codeInfo are carried through from the record", async (t) => {
+    const record = {
+      ...fixture,
+      recall_number: "F-1234-2026",
+      status: "Ongoing",
+      code_info: "Lot # ABC123, Exp Date: 01-Jan-2027.",
+    };
+    const { restore } = stubFetchByCategory({ food: { results: [record] } });
+    t.after(restore);
+
+    const [match] = await getMatchingRecallsFromApi({
+      terms: ["Nationwide"],
+      limit: 10,
+      apiKey: null,
+    });
+
+    assert.equal(match.status, "Ongoing");
+    assert.equal(match.codeInfo, "Lot # ABC123, Exp Date: 01-Jan-2027.");
+  });
+
+  test("status and codeInfo fall back to null when absent", async (t) => {
+    const record = {
+      event_id: "1",
+      recalling_firm: "Nationwide Co",
+      product_description: "Nationwide test product",
+      reason_for_recall: "Nationwide test reason",
+      report_date: "20260101",
+      recall_number: "C-1",
+      // status, code_info intentionally omitted
+    };
+    const { restore } = stubFetchByCategory({ drug: { results: [record] } });
+    t.after(restore);
+
+    const [match] = await getMatchingRecallsFromApi({
+      terms: ["Nationwide"],
+      limit: 10,
+      apiKey: null,
+    });
+
+    assert.equal(match.status, null);
+    assert.equal(match.codeInfo, null);
+  });
+
+  test('a literal "N/A" recall_number is treated as missing, using the hashed fallback id', async (t) => {
+    const record = { ...fixture, recall_number: "N/A" };
+    const { restore } = stubFetchByCategory({ food: { results: [record] } });
+    t.after(restore);
+
+    const [match] = await getMatchingRecallsFromApi({
+      terms: ["Nationwide"],
+      limit: 10,
+      apiKey: null,
+    });
+
+    assert.equal(match.recallNumber, null);
+    assert.notEqual(match.id, "api:food:N/A");
+    assert.match(match.id, /^api:food:.+$/);
+  });
+
+  test('two different records both with a literal "N/A" recall_number don\'t collide', async (t) => {
+    const otherFixture = {
+      ...fixture,
+      recall_number: "N/A",
+      event_id: "99999",
+      product_description: "A completely different product description for a separate recall.",
+      report_date: "20260820",
+    };
+    const record = { ...fixture, recall_number: "N/A" };
+    const { restore } = stubFetchByCategory({ food: { results: [record, otherFixture] } });
+    t.after(restore);
+
+    const matches = await getMatchingRecallsFromApi({
+      terms: ["Nationwide"],
+      limit: 10,
+      apiKey: null,
+    });
+
+    assert.equal(matches.length, 2);
+    assert.notEqual(matches[0].id, matches[1].id);
   });
 
   test("records that match no term are excluded", async (t) => {

@@ -56,16 +56,21 @@ genuinely new matching recall appears — see "Acknowledging recalls" below.
   recalls, or `null` if never.
 - `last_checked` — ISO timestamp of the most recent scan.
 - `filter_terms` — the search terms currently configured.
-- `recalls` — up to 10 of the most recent matches (a quick-glance sample,
-  not the full list — see "Full recall list" below for that), each with
-  `date`, `brand`, `productDescription`, `recallReason`, `url`, `source`
-  (`"page"` or `"api"`), `category` (`"food"`/`"drug"`/`"device"`,
-  API-sourced entries only), `recallNumber`, `classification`
-  (API-sourced entries only), and `isNew` (`true` until you acknowledge
-  it). openFDA doesn't expose a reliable per-record public page, so
-  API-sourced entries' `url` instead points at a Google search for
-  `FDA recall <recallNumber>` — not guaranteed to surface the exact page,
-  but usually does.
+- `recalls` — up to 10 matches (a quick-glance sample, not the full list —
+  see "Full recall list" below for that), sorted with unacknowledged
+  ("new") matches first, then by date — so new recalls aren't crowded out
+  of this cap by older acknowledged ones. Each entry has `date`, `brand`,
+  `productDescription`, `recallReason`, `url`, `source` (`"page"` or
+  `"api"`), `category` (`"food"`/`"drug"`/`"device"`, API-sourced entries
+  only), `recallNumber`, `classification`, `status` (e.g. `"Ongoing"` or
+  `"Terminated"`, API-sourced entries only), `codeInfo` (lot/best-by codes,
+  API-sourced entries only), and `isNew` (`true` until you acknowledge it).
+  openFDA doesn't expose a reliable per-record public page, so API-sourced
+  entries' `url` instead points at a Google search built from the
+  recalling firm and product description — not guaranteed to surface the
+  exact page, but usually does (the bare recall number alone rarely
+  matches anything, since it's an internal FDA id that news coverage and
+  FDA's own announcement pages don't mention).
 
 ## Acknowledging recalls
 
@@ -152,8 +157,11 @@ content: >
   {{ state_attr('sensor.fda_recall_count', 'total_matching_recalls') }} total matching
 
   {% for r in state_attr('sensor.fda_recall_count', 'recalls') | selectattr('isNew') %}
-  - **{{ r.brand }}** — {{ r.productDescription }}
+  - **{{ r.brand }}**{{ " (" + r.status + ")" if r.status else "" }} — {{ r.productDescription }}
     ({{ r.recallReason }}) {{ "[" + (r.recallNumber or "details") + "](" + r.url + ")" if r.url else "(" + (r.recallNumber or "no reference") + ")" }}
+    {%- if r.codeInfo %}
+    Lot/code: {{ r.codeInfo }}
+    {%- endif %}
   {% endfor %}
 ```
 
@@ -161,8 +169,9 @@ Only recalls still marked `isNew` render in the list — once you
 acknowledge, they drop out of the card immediately (the summary line still
 shows the total match count for context). Page-sourced recalls link the
 word "details"; API-sourced recalls link their `recallNumber` instead,
-pointing at a Google search for that recall id (see "Sensor attributes"
-above).
+pointing at a Google search built from the firm and product description
+(see "Sensor attributes" above). `status` and `codeInfo` are only present
+on API-sourced entries and are omitted from the line when absent.
 
 **Acknowledge button** (calls the `rest_command` set up above):
 

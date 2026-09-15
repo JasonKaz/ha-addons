@@ -74,6 +74,8 @@ async function pushState(matches, newMatches, filterTerms) {
           category: m.category || null,
           recallNumber: m.recallNumber || null,
           classification: m.classification || null,
+          status: m.status || null,
+          codeInfo: m.codeInfo || null,
           isNew: !acknowledgedIds.has(m.id),
         })),
     },
@@ -200,12 +202,17 @@ function renderRecallsPage() {
         ? `<a href="${escapeHtml(m.url)}" target="_blank" rel="noopener">${escapeHtml(linkText)}</a>`
         : escapeHtml(m.recallNumber || "no reference");
       const categoryBadge = m.category ? ` &middot; ${escapeHtml(m.category)}` : "";
+      const statusBadge = m.status ? ` &middot; ${escapeHtml(m.status)}` : "";
+      const codeInfo = m.codeInfo
+        ? `<div class="code">Lot/code: ${escapeHtml(m.codeInfo)}</div>`
+        : "";
       return `
         <li class="${isNew ? "new" : ""}">
-          <div class="meta">${escapeHtml(m.date || "")} &middot; ${escapeHtml(m.source)}${categoryBadge}${isNew ? ' <span class="badge">NEW</span>' : ""}</div>
+          <div class="meta">${escapeHtml(m.date || "")} &middot; ${escapeHtml(m.source)}${categoryBadge}${statusBadge}${isNew ? ' <span class="badge">NEW</span>' : ""}</div>
           <div class="brand">${escapeHtml(m.brand || "")}</div>
           <div class="desc">${escapeHtml(m.productDescription || "")}</div>
           <div class="reason">${escapeHtml(m.recallReason || "")}</div>
+          ${codeInfo}
           <div class="ref">${reference}</div>
         </li>`;
     })
@@ -297,6 +304,7 @@ function renderRecallsPage() {
   .brand { font-weight: 600; margin-bottom: 0.15rem; }
   .desc { font-size: 0.9rem; margin-bottom: 0.15rem; }
   .reason { font-size: 0.85rem; color: var(--secondary-text); margin-bottom: 0.3rem; }
+  .code { font-size: 0.8rem; color: var(--secondary-text); margin-bottom: 0.3rem; }
   a { color: var(--accent); }
 </style>
 </head>
