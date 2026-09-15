@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.0.5
+
+- Fix an issue where new API results would not appear before acknowledged page results
+
 ## 0.0.4
 
 - Add `aarch64` to arch config

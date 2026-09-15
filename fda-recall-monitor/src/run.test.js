@@ -136,6 +136,29 @@ describe("pushState", () => {
     assert.equal(body.attributes.recalls[0].isNew, true);
   });
 
+  test("sorts new matches ahead of acknowledged ones so they survive the attribute cap", async (t) => {
+    const { restore, calls } = stubSupervisorFetch();
+    t.after(restore);
+
+    // 10 already-acknowledged matches followed by 1 new one: with a naive
+    // slice(0, MAX_ATTRIBUTE_RECALLS) the new match would be cut entirely.
+    const acknowledgedMatches = Array.from({ length: 10 }, (_, i) => ({
+      id: `old-${i}`,
+      date: "01/01/2026",
+      brand: `Old ${i}`,
+    }));
+    const newMatch = { id: "new-1", date: "01/02/2026", brand: "New Co" };
+    const matches = [...acknowledgedMatches, newMatch];
+
+    await run.pushState(matches, [newMatch], ["widget"]);
+
+    const body = JSON.parse(calls[0].init.body);
+    assert.ok(
+      body.attributes.recalls.some((r) => r.brand === "New Co" && r.isNew === true),
+      "expected the new match to appear in the capped recalls attribute",
+    );
+  });
+
   test("logs and does not throw on a non-ok response", async (t) => {
     const { restore } = stubSupervisorFetch({ ok: false, status: 500 });
     t.after(restore);

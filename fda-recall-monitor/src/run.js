@@ -52,18 +52,30 @@ async function pushState(matches, newMatches, filterTerms) {
       last_checked: new Date().toISOString(),
       last_acknowledged: lastAcknowledged,
       total_matching_recalls: matches.length,
-      recalls: matches.slice(0, MAX_ATTRIBUTE_RECALLS).map((m) => ({
-        date: m.date,
-        brand: m.brand,
-        productDescription: m.productDescription,
-        recallReason: m.recallReason,
-        url: m.url,
-        source: m.source,
-        category: m.category || null,
-        recallNumber: m.recallNumber || null,
-        classification: m.classification || null,
-        isNew: !acknowledgedIds.has(m.id),
-      })),
+      recalls: matches
+        .toSorted((a, b) => {
+          const aNew = !acknowledgedIds.has(a.id);
+          const bNew = !acknowledgedIds.has(b.id);
+          if (aNew !== bNew) {
+            return aNew ? -1 : 1;
+          }
+          const dateA = a.date ? new Date(a.date) : 0;
+          const dateB = b.date ? new Date(b.date) : 0;
+          return dateB - dateA;
+        })
+        .slice(0, MAX_ATTRIBUTE_RECALLS)
+        .map((m) => ({
+          date: m.date,
+          brand: m.brand,
+          productDescription: m.productDescription,
+          recallReason: m.recallReason,
+          url: m.url,
+          source: m.source,
+          category: m.category || null,
+          recallNumber: m.recallNumber || null,
+          classification: m.classification || null,
+          isNew: !acknowledgedIds.has(m.id),
+        })),
     },
   };
 
