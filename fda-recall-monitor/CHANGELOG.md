@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.0.9
+
+- Add support for running the addon directly in a docker container
+
 ## 0.0.8
 
 - Truncate long lot/serial code lists so recall cards stay compact; the full list is behind a "Show all lot/serial codes" toggle on the `/recalls` page

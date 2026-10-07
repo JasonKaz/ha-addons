@@ -47,6 +47,111 @@ genuinely new matching recall appears — see "Acknowledging recalls" below.
 6. Confirm `sensor.fda_recall_count` appears under **Developer Tools →
    States**.
 
+## Running without Supervisor (plain Docker)
+
+Add-ons need the Supervisor, which only Home Assistant OS (and the
+deprecated Supervised install) has — a **Home Assistant Container** install
+has no Add-on Store at all. The same image can still be run as an ordinary
+container alongside Home Assistant; it then talks to Home Assistant Core's
+REST API directly instead of through the Supervisor.
+
+1. **Create a long-lived access token** in Home Assistant: click your
+   profile icon → **Security** tab → **Long-lived access tokens** →
+   **Create token**. Copy it — it's only shown once.
+2. **Create a data folder** on the Docker host (e.g. `/opt/fda-recall-monitor`)
+   and put an `options.json` in it. This replaces the add-on's
+   Configuration tab — same options, same meanings as in "Install" above:
+
+   ```json
+   {
+     "filter": "Miami,Florida,Nationwide,nationwide",
+     "scan_interval_minutes": 60,
+     "openfda_api_key": "",
+     "cache_max_age_days": 0
+   }
+   ```
+
+   The folder is mounted as the container's `/data`, so it also holds the
+   detail-page cache and the acknowledged-recalls list across restarts.
+   Edit `options.json` and restart the container to change settings.
+
+3. **Run the container**, pointing `HA_URL` at your Home Assistant
+   instance (no trailing `/api`) and `HA_TOKEN` at the token from step 1.
+   Use the image matching your host's architecture (`amd64` or `aarch64`):
+
+   ```bash
+   docker run -d --name fda-recall-monitor --restart unless-stopped \
+     -p 8099:8099 \
+     -v /opt/fda-recall-monitor:/data \
+     -e HA_URL=http://192.168.1.10:8123 \
+     -e HA_TOKEN=<long-lived-access-token> \
+     ghcr.io/jasonkaz/amd64-addon-fda-recall-monitor:latest
+   ```
+
+   Or with Docker Compose:
+
+   ```yaml
+   services:
+     fda-recall-monitor:
+       image: ghcr.io/jasonkaz/amd64-addon-fda-recall-monitor:latest
+       container_name: fda-recall-monitor
+       restart: unless-stopped
+       ports:
+         - "8099:8099"
+       volumes:
+         - /opt/fda-recall-monitor:/data
+       environment:
+         HA_URL: http://192.168.1.10:8123
+         HA_TOKEN: <long-lived-access-token>
+   ```
+
+4. Check `docker logs fda-recall-monitor` for a completed scan, then
+   confirm `sensor.fda_recall_count` appears under **Developer Tools →
+   States**.
+
+### Showing it in Home Assistant
+
+The sensor is created through Home Assistant's REST API exactly as it is
+in add-on mode, so the "Sensor attributes" and **Display card** sections
+below work unchanged. Only the two URLs that point _at this container_
+differ — there's no add-on hostname or Info tab, so both use the Docker
+host's LAN IP and the host-side port you published (`8099` above):
+
+- **`rest_command` for the Acknowledge button** (see "Acknowledging
+  recalls"):
+
+  ```yaml
+  rest_command:
+    fda_recall_acknowledge:
+      url: "http://192.168.1.10:8099/acknowledge"
+      method: POST
+  ```
+
+  If the Home Assistant container uses `network_mode: host` and runs on
+  the same machine, `http://localhost:8099/acknowledge` also works. If both
+  containers share a user-defined Docker network instead, you can use the
+  container name: `http://fda-recall-monitor:8099/acknowledge`.
+
+- **`iframe` card for the full list** (see "Full recall list"): this is
+  loaded by your browser, not by Home Assistant, so it always needs the
+  LAN IP — `localhost` or a container name won't resolve from the viewing
+  device:
+
+  ```yaml
+  type: iframe
+  url: "http://192.168.1.10:8099/recalls"
+  aspect_ratio: 75%
+  ```
+
+  If you open Home Assistant over **HTTPS** (e.g. through a reverse proxy
+  or Nabu Casa), browsers block an `http://` iframe on an `https://` page
+  as mixed content and the card shows blank. Either serve `/recalls`
+  through the same reverse proxy over HTTPS, or skip the iframe and rely
+  on the Markdown display card.
+
+The **Security note** under "Acknowledging recalls" applies here too:
+port 8099 has no authentication, so only publish it on your LAN.
+
 ## Sensor attributes
 
 - `state` — count of matching recalls not yet acknowledged.
@@ -213,8 +318,8 @@ automatically from a fresh clone, enable it once per clone:
 git config core.hooksPath .githooks
 ```
 
-This add-on's container image is built and published to GHCR
-(`ghcr.io/jasonkaz/amd64-addon-fda-recall-monitor`) by a GitHub Actions
+This add-on's container images are built and published to GHCR
+(`ghcr.io/jasonkaz/{amd64,aarch64}-addon-fda-recall-monitor`) by a GitHub Actions
 workflow (`.github/workflows/build-fda-recall-monitor.yml`) whenever a
 change under `fda-recall-monitor/` is pushed to `main`. Bump `version` in
 `config.yaml` to publish a new image tag.

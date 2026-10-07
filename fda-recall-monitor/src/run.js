@@ -21,7 +21,13 @@ const { truncateText } = require("./utils.js");
 
 const OPTIONS_PATH = "/data/options.json";
 const CACHE_DIR = "/data/fda-recalls-cache";
-const SUPERVISOR_TOKEN = process.env.SUPERVISOR_TOKEN;
+// Installed as an add-on, the Supervisor provides SUPERVISOR_TOKEN and proxies
+// Core's API at http://supervisor/core. Run as a plain Docker container
+// (e.g. alongside a Home Assistant Container install, which has no
+// Supervisor), HA_URL and HA_TOKEN (a long-lived access token) point it at
+// Core directly instead.
+const HA_URL = (process.env.HA_URL || "http://supervisor/core").replace(/\/+$/, "");
+const HA_TOKEN = process.env.SUPERVISOR_TOKEN || process.env.HA_TOKEN;
 const ENTITY_ID = "sensor.fda_recall_count";
 const LIMIT = 25; // not user-configurable; fixed page-scraper listing-row count per scan
 const API_LIMIT = 50; // not user-configurable; fixed openFDA row count per category per scan
@@ -89,10 +95,10 @@ async function pushState(matches, newMatches, filterTerms) {
   };
 
   try {
-    const res = await fetch(`http://supervisor/core/api/states/${ENTITY_ID}`, {
+    const res = await fetch(`${HA_URL}/api/states/${ENTITY_ID}`, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${SUPERVISOR_TOKEN}`,
+        Authorization: `Bearer ${HA_TOKEN}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify(body),
