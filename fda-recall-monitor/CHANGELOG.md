@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.0.7
+
+- Add `aarch64` to build options
+
 ## 0.0.6
 
 - Fix bug when recall number was "N/A", resulting in collisions

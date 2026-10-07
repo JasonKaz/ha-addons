@@ -33,6 +33,7 @@ jobs:
         with:
           args: |
             --amd64 \
+            --aarch64 \
             --target /data/fda-recall-monitor \
             --image "{arch}-addon-fda-recall-monitor" \
             --docker-hub "ghcr.io/jasonkaz" \
