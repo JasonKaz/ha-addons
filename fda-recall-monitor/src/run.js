@@ -17,6 +17,7 @@ const getMatchingRecalls = require("./fda-recalls-scraper.js");
 const getMatchingRecallsFromApi = require("./fda-api.js");
 const { logger } = require("./logger.js");
 const acknowledged = require("./acknowledged.js");
+const { truncateText } = require("./utils.js");
 
 const OPTIONS_PATH = "/data/options.json";
 const CACHE_DIR = "/data/fda-recalls-cache";
@@ -30,6 +31,12 @@ const API_LIMIT = 50; // not user-configurable; fixed openFDA row count per cate
 // to Home Assistant's ~16KB recorder-history attribute-size warning since
 // it isn't a state attribute at all.
 const MAX_ATTRIBUTE_RECALLS = 10;
+// Some recalls (especially devices) list hundreds of lot/serial numbers in
+// codeInfo — several KB of text that would swamp dashboard cards and push
+// the sensor attribute toward that same size warning. The attribute and the
+// /recalls preview are cut to this length; the full text stays available on
+// /recalls behind a "show all" toggle.
+const MAX_CODE_INFO_LENGTH = 200;
 const SERVER_PORT = 8099;
 
 let acknowledgedIds = acknowledged.load();
@@ -75,7 +82,7 @@ async function pushState(matches, newMatches, filterTerms) {
           recallNumber: m.recallNumber || null,
           classification: m.classification || null,
           status: m.status || null,
-          codeInfo: m.codeInfo || null,
+          codeInfo: truncateText(m.codeInfo, MAX_CODE_INFO_LENGTH) || null,
           isNew: !acknowledgedIds.has(m.id),
         })),
     },
@@ -181,6 +188,22 @@ function escapeHtml(text) {
   );
 }
 
+// Long code lists get a short preview with the full text tucked behind a
+// <details> toggle, so a recall with hundreds of serial numbers doesn't
+// turn its card into a wall of text.
+function renderCodeInfo(codeInfo) {
+  if (!codeInfo) {
+    return "";
+  }
+  const preview = truncateText(codeInfo, MAX_CODE_INFO_LENGTH);
+  if (preview === codeInfo) {
+    return `<div class="code">Lot/code: ${escapeHtml(codeInfo)}</div>`;
+  }
+  return `<div class="code">Lot/code: ${escapeHtml(preview)}
+            <details><summary>Show all lot/serial codes</summary>${escapeHtml(codeInfo)}</details>
+          </div>`;
+}
+
 // Full, unbounded HTML listing of the latest scan's matches — meant to be
 // embedded via a Lovelace "iframe" card, since none of Home Assistant's
 // built-in cards can fetch arbitrary data themselves. Recall text comes
@@ -203,9 +226,7 @@ function renderRecallsPage() {
         : escapeHtml(m.recallNumber || "no reference");
       const categoryBadge = m.category ? ` &middot; ${escapeHtml(m.category)}` : "";
       const statusBadge = m.status ? ` &middot; ${escapeHtml(m.status)}` : "";
-      const codeInfo = m.codeInfo
-        ? `<div class="code">Lot/code: ${escapeHtml(m.codeInfo)}</div>`
-        : "";
+      const codeInfo = renderCodeInfo(m.codeInfo);
       return `
         <li class="${isNew ? "new" : ""}">
           <div class="meta">${escapeHtml(m.date || "")} &middot; ${escapeHtml(m.source)}${categoryBadge}${statusBadge}${isNew ? ' <span class="badge">NEW</span>' : ""}</div>
@@ -304,7 +325,8 @@ function renderRecallsPage() {
   .brand { font-weight: 600; margin-bottom: 0.15rem; }
   .desc { font-size: 0.9rem; margin-bottom: 0.15rem; }
   .reason { font-size: 0.85rem; color: var(--secondary-text); margin-bottom: 0.3rem; }
-  .code { font-size: 0.8rem; color: var(--secondary-text); margin-bottom: 0.3rem; }
+  .code { font-size: 0.8rem; color: var(--secondary-text); margin-bottom: 0.3rem; overflow-wrap: anywhere; }
+  .code summary { cursor: pointer; color: var(--accent); margin-top: 0.15rem; }
   a { color: var(--accent); }
 </style>
 </head>
@@ -390,6 +412,7 @@ module.exports = {
   pushState,
   runOnce,
   escapeHtml,
+  renderCodeInfo,
   renderRecallsPage,
   handleAcknowledge,
   startServer,

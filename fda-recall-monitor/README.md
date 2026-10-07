@@ -64,7 +64,9 @@ genuinely new matching recall appears — see "Acknowledging recalls" below.
   `"api"`), `category` (`"food"`/`"drug"`/`"device"`, API-sourced entries
   only), `recallNumber`, `classification`, `status` (e.g. `"Ongoing"` or
   `"Terminated"`, API-sourced entries only), `codeInfo` (lot/best-by codes,
-  API-sourced entries only), and `isNew` (`true` until you acknowledge it).
+  API-sourced entries only; cut to ~200 characters with a trailing "…" since
+  some recalls list hundreds of serial numbers — the full list is on the
+  `/recalls` page), and `isNew` (`true` until you acknowledge it).
   openFDA doesn't expose a reliable per-record public page, so API-sourced
   entries' `url` instead points at a Google search built from the
   recalling firm and product description — not guaranteed to surface the

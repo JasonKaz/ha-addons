@@ -1,7 +1,7 @@
 const { describe, test } = require("node:test");
 const assert = require("node:assert/strict");
 
-const { escapeRegExp, buildTermMatchers } = require("./utils.js");
+const { escapeRegExp, buildTermMatchers, truncateText } = require("./utils.js");
 
 describe("escapeRegExp", () => {
   test("escapes regex special characters", () => {
@@ -33,5 +33,22 @@ describe("buildTermMatchers", () => {
 
     assert.ok(matcher.test("recalled by A.B.C Foods"));
     assert.ok(!matcher.test("recalled by AxBxC Foods"));
+  });
+});
+
+describe("truncateText", () => {
+  test("returns short text and null/undefined unchanged", () => {
+    assert.equal(truncateText("Lot # ABC123", 20), "Lot # ABC123");
+    assert.equal(truncateText(null, 20), null);
+    assert.equal(truncateText(undefined, 20), undefined);
+  });
+
+  test("cuts at the last space or semicolon boundary and appends an ellipsis", () => {
+    assert.equal(truncateText("V2842901 V2841713 V2841724", 20), "V2842901 V2841713…");
+    assert.equal(truncateText("Model No: 1-200; UDI-DI: 008417", 22), "Model No: 1-200…");
+  });
+
+  test("hard-cuts when there is no boundary to cut at", () => {
+    assert.equal(truncateText("ABCDEFGHIJ", 5), "ABCDE…");
   });
 });

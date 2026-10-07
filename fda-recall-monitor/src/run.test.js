@@ -140,6 +140,20 @@ describe("pushState", () => {
     assert.equal(body.attributes.recalls[0].codeInfo, "Lot # ABC123");
   });
 
+  test("truncates very long codeInfo in the attribute", async (t) => {
+    const { restore, calls } = stubSupervisorFetch();
+    t.after(restore);
+
+    const serials = Array.from({ length: 300 }, (_, i) => `V${2840000 + i}`).join(" ");
+    const matches = [{ id: "long", source: "api", codeInfo: `Kit Serial Number: ${serials}` }];
+    await run.pushState(matches, matches, ["widget"]);
+
+    const { codeInfo } = JSON.parse(calls[0].init.body).attributes.recalls[0];
+    assert.ok(codeInfo.length <= 201, `expected <= 201 chars, got ${codeInfo.length}`);
+    assert.ok(codeInfo.startsWith("Kit Serial Number: V2840000 V2840001"));
+    assert.ok(codeInfo.endsWith("…"));
+  });
+
   test("status and codeInfo fall back to null for page-sourced matches lacking them", async (t) => {
     const { restore, calls } = stubSupervisorFetch();
     t.after(restore);
@@ -298,6 +312,31 @@ describe("renderRecallsPage", () => {
     const html = run.renderRecallsPage();
 
     assert.match(html, /No matching recalls\./);
+  });
+});
+
+describe("renderCodeInfo", () => {
+  test("renders nothing when codeInfo is absent", () => {
+    assert.equal(run.renderCodeInfo(null), "");
+  });
+
+  test("renders short codeInfo inline without a toggle", () => {
+    const html = run.renderCodeInfo("Lot # ABC123 <b>");
+
+    assert.match(html, /Lot\/code: Lot # ABC123 &lt;b&gt;/);
+    assert.doesNotMatch(html, /<details>/);
+  });
+
+  test("renders a truncated preview plus the full escaped text behind a toggle", () => {
+    const serials = Array.from({ length: 300 }, (_, i) => `V${2840000 + i}`).join(" ");
+    const html = run.renderCodeInfo(`<i>Kit</i>: ${serials}`);
+
+    const [preview, details] = html.split("<details>");
+    assert.match(preview, /Lot\/code: &lt;i&gt;Kit&lt;\/i&gt;: V2840000 .*…/);
+    assert.doesNotMatch(preview, /V2840299/);
+    assert.match(details, /Show all lot\/serial codes/);
+    assert.match(details, /V2840299/);
+    assert.doesNotMatch(html, /<i>/);
   });
 });
 
