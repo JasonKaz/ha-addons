@@ -375,6 +375,29 @@ describe("handleAcknowledge", () => {
       stillNew.map((m) => m.id),
       ["api:food:brand-new"],
     );
+
+    // A new recall older than the acknowledged one must still render first
+    // on the /recalls page, matching the sensor attribute's ordering.
+    restore();
+    const olderNewRecord = {
+      ...apiRecord,
+      event_id: "41",
+      recalling_firm: "Nationwide Older Co",
+      report_date: "20260101",
+      recall_number: "D-41",
+    };
+    const { restore: restore2 } = stubAllFetch({
+      pageFetchFails: true,
+      apiResults: { food: [apiRecord, olderNewRecord] },
+    });
+    t.after(restore2);
+    await run.runOnce();
+
+    const html = run.renderRecallsPage();
+    assert.ok(
+      html.indexOf("Nationwide Older Co") < html.indexOf("Nationwide Co<"),
+      "expected the unacknowledged recall to render before the acknowledged one",
+    );
   });
 });
 

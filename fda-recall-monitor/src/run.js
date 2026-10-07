@@ -54,6 +54,18 @@ function computeNewMatches(matches) {
   return matches.filter((m) => !acknowledgedIds.has(m.id));
 }
 
+// Unacknowledged recalls first, then newest first within each group.
+function compareRecalls(a, b) {
+  const aNew = !acknowledgedIds.has(a.id);
+  const bNew = !acknowledgedIds.has(b.id);
+  if (aNew !== bNew) {
+    return aNew ? -1 : 1;
+  }
+  const dateA = a.date ? new Date(a.date) : 0;
+  const dateB = b.date ? new Date(b.date) : 0;
+  return dateB - dateA;
+}
+
 async function pushState(matches, newMatches, filterTerms) {
   const body = {
     state: newMatches.length,
@@ -66,16 +78,7 @@ async function pushState(matches, newMatches, filterTerms) {
       last_acknowledged: lastAcknowledged,
       total_matching_recalls: matches.length,
       recalls: matches
-        .toSorted((a, b) => {
-          const aNew = !acknowledgedIds.has(a.id);
-          const bNew = !acknowledgedIds.has(b.id);
-          if (aNew !== bNew) {
-            return aNew ? -1 : 1;
-          }
-          const dateA = a.date ? new Date(a.date) : 0;
-          const dateB = b.date ? new Date(b.date) : 0;
-          return dateB - dateA;
-        })
+        .toSorted(compareRecalls)
         .slice(0, MAX_ATTRIBUTE_RECALLS)
         .map((m) => ({
           date: m.date,
@@ -217,11 +220,7 @@ function renderCodeInfo(codeInfo) {
 // insertion.
 function renderRecallsPage() {
   const newCount = computeNewMatches(lastMatches).length;
-  const sorted = lastMatches.toSorted((a, b) => {
-    const dateA = a.date ? new Date(a.date) : 0;
-    const dateB = b.date ? new Date(b.date) : 0;
-    return dateB - dateA;
-  });
+  const sorted = lastMatches.toSorted(compareRecalls);
 
   const rows = sorted
     .map((m) => {

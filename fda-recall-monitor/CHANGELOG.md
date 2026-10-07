@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.0.10
+
+- Sort unacknowledged recalls to the top of the `/recalls` page, matching the order of the sensor's `recalls` attribute
+
 ## 0.0.9
 
 - Add support for running the addon directly in a docker container
