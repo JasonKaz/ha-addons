@@ -14,8 +14,9 @@ API (sometimes for weeks), and recalls exist in the API that never get
 posted to the public page at all — so relying on just one misses real
 recalls the other one has.
 
-The sensor is designed to be actionable: its state drops back to 0 once
-you acknowledge the currently-shown recalls, and only rises again when a
+The sensor is designed to be actionable: acknowledging the currently-shown
+recalls removes them from its count, so it drops back to 0 once every new
+recall has been shown and acknowledged, and only rises again when a
 genuinely new matching recall appears — see "Acknowledging recalls" below.
 
 ## Install
@@ -164,7 +165,7 @@ port 8099 has no authentication, so only publish it on your LAN.
 - `recalls` — up to 10 matches (a quick-glance sample, not the full list —
   see "Full recall list" below for that), sorted with unacknowledged
   ("new") matches first, then by date — so new recalls aren't crowded out
-  of this cap by older acknowledged ones. Each entry has `date`, `brand`,
+  of this cap by older acknowledged ones. Each entry has `id`, `date`, `brand`,
   `productDescription`, `recallReason`, `url`, `source` (`"page"` or
   `"api"`), `category` (`"food"`/`"drug"`/`"device"`, API-sourced entries
   only), `recallNumber`, `classification`, `status` (e.g. `"Ongoing"` or
@@ -182,9 +183,18 @@ port 8099 has no authentication, so only publish it on your LAN.
 ## Acknowledging recalls
 
 The add-on exposes a small HTTP endpoint for acknowledging the
-currently-shown recalls: `POST /acknowledge`. This marks every recall in
-the most recent scan as seen, so `sensor.fda_recall_count` immediately
-drops to 0 and only climbs again once a new, not-yet-seen recall is found.
+currently-shown recalls: `POST /acknowledge`. With no request body, this
+marks only the recalls currently in the sensor's `recalls` attribute (up
+to 10) as seen — not every match — so a recall you never saw because it
+fell outside that cap stays new. If more than 10 new recalls are waiting,
+`sensor.fda_recall_count` drops by the number acknowledged and the next
+batch of new recalls moves into the attribute; the count only reaches 0
+once every new recall has been shown and acknowledged.
+
+To acknowledge specific recalls instead, send a JSON body with their ids,
+taken from each entry's `id` in the `recalls` attribute:
+`{"ids": ["api:food:F-1234-2026", ...]}`. The **Acknowledge All** button
+on the `/recalls` page does this with every recall on that page.
 
 There's no built-in dashboard button for this — wire it up with Home
 Assistant's core `rest_command` integration. Since `rest_command` runs

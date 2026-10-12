@@ -361,7 +361,8 @@ describe("handleAcknowledge", () => {
     const writeHead = t.mock.fn();
     const end = t.mock.fn();
 
-    await run.handleAcknowledge({ writeHead, end });
+    // An empty request body (as a plain rest_command sends) is fine.
+    await run.handleAcknowledge([], { writeHead, end });
 
     assert.equal(saveMock.mock.calls.length, 1);
     assert.equal(writeHead.mock.calls[0].arguments[0], 200);
@@ -398,6 +399,71 @@ describe("handleAcknowledge", () => {
       html.indexOf("Nationwide Older Co") < html.indexOf("Nationwide Co<"),
       "expected the unacknowledged recall to render before the acknowledged one",
     );
+  });
+});
+
+function fakeRes(t) {
+  return { writeHead: t.mock.fn(), end: t.mock.fn() };
+}
+
+describe("handleAcknowledge scope", () => {
+  // 12 new API matches — more than the sensor attribute's 10-recall cap.
+  // Acknowledged ids persist in run.js's module state across tests, so each
+  // test passes its own prefix to keep its recall numbers unique.
+  async function scanTwelve(t, prefix) {
+    t.mock.method(fs, "readFileSync", () =>
+      JSON.stringify({ filter: "Scopetest", scan_interval_minutes: 30, openfda_api_key: "" }),
+    );
+    const records = Array.from({ length: 12 }, (_, i) => ({
+      event_id: `s${i}`,
+      recalling_firm: `Scopetest Firm ${i}`,
+      product_description: "Scopetest widget",
+      reason_for_recall: "Scopetest reason",
+      report_date: `202603${String(i + 10).padStart(2, "0")}`,
+      recall_number: `${prefix}-${i}`,
+    }));
+    const { restore } = stubAllFetch({ pageFetchFails: true, apiResults: { food: records } });
+    t.after(restore);
+    await run.runOnce();
+    t.mock.method(acknowledgedModule, "save", () => {});
+    return records.map((r) => `api:food:${r.recall_number}`);
+  }
+
+  test("with no body, acknowledges only the recalls shown in the sensor attribute", async (t) => {
+    const ids = await scanTwelve(t, "A");
+    const res = fakeRes(t);
+
+    await run.handleAcknowledge([], res);
+
+    assert.equal(JSON.parse(res.end.mock.calls[0].arguments[0]).acknowledgedCount, 10);
+    // The two oldest were beyond the cap, so they were never shown and stay new.
+    assert.deepEqual(
+      run.computeNewMatches(ids.map((id) => ({ id }))).map((m) => m.id),
+      ["api:food:A-0", "api:food:A-1"],
+    );
+  });
+
+  test("with an ids body, acknowledges exactly those ids", async (t) => {
+    const ids = await scanTwelve(t, "B");
+    const res = fakeRes(t);
+
+    await run.handleAcknowledge([JSON.stringify({ ids: ["api:food:B-3"] })], res);
+
+    assert.equal(JSON.parse(res.end.mock.calls[0].arguments[0]).acknowledgedCount, 1);
+    const stillNew = run.computeNewMatches(ids.map((id) => ({ id }))).map((m) => m.id);
+    assert.equal(stillNew.length, 11);
+    assert.ok(!stillNew.includes("api:food:B-3"));
+  });
+
+  test("rejects a malformed body with 400 and acknowledges nothing", async (t) => {
+    const ids = await scanTwelve(t, "C");
+    const res = fakeRes(t);
+
+    await run.handleAcknowledge(['{"ids": "nope"}'], res);
+
+    assert.equal(res.writeHead.mock.calls[0].arguments[0], 400);
+    assert.equal(acknowledgedModule.save.mock.calls.length, 0);
+    assert.equal(run.computeNewMatches(ids.map((id) => ({ id }))).length, 12);
   });
 });
 

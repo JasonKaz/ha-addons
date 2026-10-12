@@ -8,8 +8,10 @@
 // sensor.fda_recall_count via Home Assistant Core's REST API, proxied
 // through the Supervisor. Also runs a small HTTP server so an
 // "acknowledge" action (e.g. a dashboard button via a rest_command) can
-// mark the currently-shown recalls as seen, dropping the sensor back to 0
-// until a genuinely new recall shows up.
+// mark the recalls currently shown in the sensor's `recalls` attribute as
+// seen — only those, since the attribute is capped and anything beyond the
+// cap was never actually shown — so the sensor only drops back to 0 once
+// every new recall has had its turn on screen.
 
 const fs = require("fs");
 const http = require("http");
@@ -49,6 +51,9 @@ let acknowledgedIds = acknowledged.load();
 let lastMatches = [];
 let lastFilterTerms = [];
 let lastAcknowledged = null;
+// Ids of the recalls most recently pushed in the sensor's capped `recalls`
+// attribute — what a bare POST /acknowledge marks as seen.
+let lastShownIds = [];
 
 function computeNewMatches(matches) {
   return matches.filter((m) => !acknowledgedIds.has(m.id));
@@ -67,6 +72,8 @@ function compareRecalls(a, b) {
 }
 
 async function pushState(matches, newMatches, filterTerms) {
+  const shown = matches.toSorted(compareRecalls).slice(0, MAX_ATTRIBUTE_RECALLS);
+  lastShownIds = shown.map((m) => m.id);
   const body = {
     state: newMatches.length,
     attributes: {
@@ -77,23 +84,21 @@ async function pushState(matches, newMatches, filterTerms) {
       last_checked: new Date().toISOString(),
       last_acknowledged: lastAcknowledged,
       total_matching_recalls: matches.length,
-      recalls: matches
-        .toSorted(compareRecalls)
-        .slice(0, MAX_ATTRIBUTE_RECALLS)
-        .map((m) => ({
-          date: m.date,
-          brand: m.brand,
-          productDescription: m.productDescription,
-          recallReason: m.recallReason,
-          url: m.url,
-          source: m.source,
-          category: m.category || null,
-          recallNumber: m.recallNumber || null,
-          classification: m.classification || null,
-          status: m.status || null,
-          codeInfo: truncateText(m.codeInfo, MAX_CODE_INFO_LENGTH) || null,
-          isNew: !acknowledgedIds.has(m.id),
-        })),
+      recalls: shown.map((m) => ({
+        id: m.id,
+        date: m.date,
+        brand: m.brand,
+        productDescription: m.productDescription,
+        recallReason: m.recallReason,
+        url: m.url,
+        source: m.source,
+        category: m.category || null,
+        recallNumber: m.recallNumber || null,
+        classification: m.classification || null,
+        status: m.status || null,
+        codeInfo: truncateText(m.codeInfo, MAX_CODE_INFO_LENGTH) || null,
+        isNew: !acknowledgedIds.has(m.id),
+      })),
     },
   };
 
@@ -339,12 +344,20 @@ function renderRecallsPage() {
   <h1>FDA Recalls</h1>
   <div class="summary">
     <span><strong>${newCount}</strong> new recall(s) out of <strong>${sorted.length}</strong> total matching (${escapeHtml(lastFilterTerms.join(", "))})</span>
-    <button id="ack">Acknowledge All</button>
+    <button id="ack" data-ids="${escapeHtml(JSON.stringify(sorted.map((m) => m.id)))}">Acknowledge All</button>
   </div>
   <ul>${rows || "<li>No matching recalls.</li>"}</ul>
   <script>
     document.getElementById("ack").addEventListener("click", async () => {
-      const res = await fetch("/acknowledge", { method: "POST" });
+      // Sends exactly the ids rendered on this page, so a scan that lands
+      // between loading the page and clicking can't acknowledge a recall
+      // that was never shown here.
+      const ids = JSON.parse(document.getElementById("ack").dataset.ids);
+      const res = await fetch("/acknowledge", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids }),
+      });
       if (res.ok) {
         location.reload();
       } else {
@@ -356,16 +369,48 @@ function renderRecallsPage() {
 </html>`;
 }
 
-async function handleAcknowledge(res) {
-  const acknowledgedCount = lastMatches.length;
-  for (const m of lastMatches) {
-    acknowledgedIds.add(m.id);
+async function readBody(req) {
+  let body = "";
+  for await (const chunk of req) {
+    body += chunk;
+  }
+  return body;
+}
+
+// Acknowledges the ids given in an optional JSON body (`{"ids": [...]}`),
+// or — with no body, as a plain rest_command sends — the recalls currently
+// shown in the sensor's capped `recalls` attribute. Never everything that
+// matched: recalls beyond the cap stay new until they've been shown.
+async function handleAcknowledge(req, res) {
+  const raw = (await readBody(req)).trim();
+  let ids = lastShownIds;
+  if (raw) {
+    let parsed;
+    try {
+      parsed = JSON.parse(raw);
+    } catch {
+      parsed = null;
+    }
+    if (!Array.isArray(parsed?.ids) || !parsed.ids.every((id) => typeof id === "string")) {
+      res.writeHead(400, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ ok: false, error: 'Body must be {"ids": [string, ...]}' }));
+      return;
+    }
+    ids = parsed.ids;
+  }
+
+  let acknowledgedCount = 0;
+  for (const id of ids) {
+    if (!acknowledgedIds.has(id)) {
+      acknowledgedIds.add(id);
+      acknowledgedCount++;
+    }
   }
   acknowledged.save(acknowledgedIds);
   lastAcknowledged = new Date().toISOString();
   logger.info("Recalls acknowledged", { acknowledgedCount });
 
-  await pushState(lastMatches, [], lastFilterTerms);
+  await pushState(lastMatches, computeNewMatches(lastMatches), lastFilterTerms);
 
   res.writeHead(200, { "Content-Type": "application/json" });
   res.end(JSON.stringify({ ok: true, acknowledgedCount }));
@@ -384,7 +429,7 @@ function startServer() {
       return;
     }
     if (req.method === "POST" && req.url === "/acknowledge") {
-      handleAcknowledge(res).catch((err) => {
+      handleAcknowledge(req, res).catch((err) => {
         logger.error("Acknowledge request failed", err);
         res.writeHead(500, { "Content-Type": "application/json" });
         res.end(JSON.stringify({ ok: false, error: err.message }));

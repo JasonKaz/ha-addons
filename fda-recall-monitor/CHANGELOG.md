@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.0.11
+
+- `POST /acknowledge` now acknowledges only the recalls shown in the sensor's `recalls` attribute (up to 10), not every match, so recalls beyond that cap stay new until they've been shown
+- `POST /acknowledge` accepts an optional `{"ids": [...]}` body to acknowledge specific recalls; each entry in the `recalls` attribute now includes its `id`
+- The `/recalls` page's **Acknowledge All** button acknowledges exactly the recalls on the page, even if a scan finishes after the page loaded
+
 ## 0.0.10
 
 - Sort unacknowledged recalls to the top of the `/recalls` page, matching the order of the sensor's `recalls` attribute
