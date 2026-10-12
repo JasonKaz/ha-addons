@@ -309,6 +309,8 @@ To get a quick summary of the newest recalls I use a simple Tile card targeting 
 When clicking on that card I use a [Bubble Card](https://github.com/Clooos/bubble-card) popup that lists the details of the latest 10 recalls (the **Display Card** yaml above). Along with the button to acknowledge the recalls.  
 ![Recall list in popup](./docs/SensorPopup.png)
 
+The "View FDA Alerts" button above is just a button that opens https://www.fda.gov/safety/recalls-market-withdrawals-safety-alerts.
+
 ## Development
 
 ```bash
